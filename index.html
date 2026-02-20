@@ -773,11 +773,11 @@ const SIGNS = {
 const canvasWrap = document.getElementById("canvas-wrap");
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0D0820);
-
+// scene.background = new THREE.Color(0x0D0820);
+scene.background = new THREE.Color(0xF5F6FA);
 // Subtle fog for depth
-scene.fog = new THREE.FogExp2(0x0D0820, 0.045);
-
+// scene.fog = new THREE.FogExp2(0x0D0820, 0.045);
+scene.fog = new THREE.FogExp2(0xF5F6FA, 0.03);
 const camera = new THREE.PerspectiveCamera(
   45, canvasWrap.clientWidth / canvasWrap.clientHeight, 0.1, 1000
 );
