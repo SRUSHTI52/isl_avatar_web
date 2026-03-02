@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ISL Connect — 3D Avatar</title>
+  <title>ISL Connect — Sign Language Viewer</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- Three.js import map -->
   <script type="importmap">
   {
     "imports": {
@@ -20,7 +19,1065 @@
   </script>
 
   <style>
-    /* ── ISL Connect Design Tokens ── */
+    :root {
+      --primary:        #1A6B8A;
+      --primary-dark:   #134F68;
+      --primary-light:  #2A8FAF;
+      --accent:         #1B9E7A;
+      --accent-dark:    #157A5E;
+      --accent-light:   #25C49A;
+      --bg:             #FFFFFF;
+      --bg-surface:     #F4F7F9;
+      --bg-card:        #FFFFFF;
+      --border:         #D6E4EA;
+      --border-mid:     #C0D5DE;
+      --text:           #1A2B33;
+      --text-secondary: #4A6272;
+      --text-muted:     #7A96A4;
+      --shadow-sm:      0 1px 4px rgba(26,107,138,0.08);
+      --shadow-md:      0 4px 16px rgba(26,107,138,0.12);
+      --shadow-lg:      0 8px 32px rgba(26,107,138,0.16);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
+
+    /* ── TOP HEADER ── */
+    .header {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 60px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: white;
+      fill: none;
+    }
+
+    .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .logo-text span {
+      color: var(--primary);
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 22px;
+      background: var(--border);
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .back-btn:hover {
+      background: var(--bg-surface);
+      border-color: var(--border-mid);
+      color: var(--text);
+    }
+    .back-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-dark);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── 3D CANVAS ── */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #F0F5F8;
+    }
+
+    #three-canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #F0F5F8;
+      gap: 14px;
+      transition: opacity 0.4s ease;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-ring {
+      width: 44px;
+      height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-right-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* Sign label overlay */
+    .sign-label-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+    .sign-label-overlay.visible { opacity: 1; }
+
+    .sign-name-chip {
+      background: var(--primary);
+      border-radius: 4px;
+      padding: 8px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      letter-spacing: 0.5px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .sign-sub-chip {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ── SIDE PANEL ── */
+    .side-panel {
+      width: 240px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .panel-header {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-header-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .panel-header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Category tabs */
+    .category-tabs {
+      display: flex;
+      padding: 12px 14px 0;
+      gap: 6px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .cat-tab {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 5px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      letter-spacing: 0.2px;
+    }
+    .cat-tab.active {
+      background: #EAF4F8;
+      border-color: #B8D8E4;
+      color: var(--primary);
+    }
+    .cat-tab:hover:not(.active) {
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+    }
+
+    /* Sign list */
+    .sign-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sign-list::-webkit-scrollbar { width: 4px; }
+    .sign-list::-webkit-scrollbar-track { background: transparent; }
+    .sign-list::-webkit-scrollbar-thumb {
+      background: var(--border-mid);
+      border-radius: 2px;
+    }
+
+    /* Sign button */
+    .sign-btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+    }
+    .sign-btn:hover {
+      background: var(--bg-surface);
+      border-color: var(--border);
+    }
+    .sign-btn.playing {
+      background: #EAF4F8;
+      border-color: #B8D8E4;
+    }
+
+    .sign-btn-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #E0EFF5, #D4EDE6);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sign-btn.playing .sign-btn-icon-wrap {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-color: transparent;
+    }
+
+    .sign-btn-icon-wrap svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .sign-btn.playing .sign-btn-icon-wrap svg {
+      stroke: white;
+    }
+
+    .sign-btn-text {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sign-btn-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .sign-btn.playing .sign-btn-name {
+      color: var(--primary-dark);
+    }
+
+    .sign-btn-sub {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sign-btn-status {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    /* Playing bars */
+    .play-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+    }
+    .play-bar {
+      width: 3px;
+      background: var(--accent);
+      border-radius: 1px;
+      animation: barBounce 0.8s ease-in-out infinite;
+    }
+    .play-bar:nth-child(2) { animation-delay: 0.15s; }
+    .play-bar:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes barBounce {
+      0%, 100% { height: 4px; }
+      50%       { height: 12px; }
+    }
+
+    .play-icon svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--text-muted);
+      fill: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .sign-btn:hover .play-icon svg { opacity: 1; }
+
+    /* ── BOTTOM CONTROLS ── */
+    .bottom-bar {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 24px;
+      height: 54px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 16px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+
+    .ctrl-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text-secondary);
+    }
+    .ctrl-btn:hover {
+      background: #EAF4F8;
+      border-color: #B8D8E4;
+      color: var(--primary);
+    }
+    .ctrl-btn svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .ctrl-divider {
+      width: 1px;
+      height: 22px;
+      background: var(--border);
+    }
+
+    /* Speed pills */
+    .speed-pills { display: flex; gap: 4px; }
+    .speed-pill {
+      padding: 5px 10px;
+      border-radius: 5px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .speed-pill.active {
+      background: #EAF4F8;
+      border-color: #B8D8E4;
+      color: var(--primary);
+    }
+    .speed-pill:hover:not(.active) {
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+    }
+
+    /* Loop toggle */
+    .loop-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+    .loop-toggle input { display: none; }
+    .toggle-track {
+      width: 34px;
+      height: 18px;
+      background: var(--border-mid);
+      border-radius: 9px;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: left 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    input:checked ~ .toggle-track {
+      background: var(--accent);
+    }
+    input:checked ~ .toggle-track .toggle-thumb {
+      left: 16px;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-6px);
+      background: var(--primary-dark);
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: white;
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .side-panel { width: 180px; }
+      .speed-pills { display: none; }
+      .ctrl-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <a class="logo-mark" href="#">
+      <div class="logo-icon">
+        <img src="logo.png" alt="sign icon" style="width:18px; height:18px; object-fit:contain;" />
+        </svg>
+      </div>
+      <span class="logo-text"><span>GESPY</span></span>
+    </a>
+    <div class="header-divider"></div>
+    <span class="header-subtitle">3D Sign Language Viewer</span>
+  </div>
+
+  <div class="header-left" style="gap: 14px;">
+    <div class="status-indicator">
+      <div class="status-dot"></div>
+      Avatar Ready
+    </div>
+    <a class="back-btn" onclick="history.back()" href="#">
+      <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Back
+    </a>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main-layout">
+
+  <!-- Canvas -->
+  <div class="canvas-wrap" id="canvas-wrap">
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loader-ring"></div>
+      <div class="loader-text">Loading avatar…</div>
+    </div>
+
+    <div class="sign-label-overlay" id="sign-label">
+      <div class="sign-name-chip" id="sign-name-text">HELLO</div>
+      <div class="sign-sub-chip">ISL · 3D Demonstration</div>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <aside class="side-panel">
+    <div class="panel-header">
+      <div class="panel-header-label">Library</div>
+      <div class="panel-header-title">ISL Signs</div>
+    </div>
+
+    <div class="category-tabs">
+      <button class="cat-tab active" onclick="setCategory('actions')">Actions</button>
+    </div>
+
+    <div class="sign-list" id="sign-list"></div>
+  </aside>
+</div>
+
+<!-- Bottom Controls -->
+<div class="bottom-bar">
+
+  <div class="ctrl-group">
+    <span class="ctrl-label">Camera</span>
+    <button class="ctrl-btn" onclick="resetCamera()" title="Reset view">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    </button>
+    <button class="ctrl-btn" onclick="zoomCamera(-0.4)" title="Zoom in">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
+    <button class="ctrl-btn" onclick="zoomCamera(0.4)" title="Zoom out">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="ctrl-divider"></div>
+
+  <div class="ctrl-group">
+    <span class="ctrl-label">Speed</span>
+    <div class="speed-pills">
+      <button class="speed-pill" onclick="setSpeed(0.5)">0.5×</button>
+      <button class="speed-pill active" onclick="setSpeed(1.0)">1×</button>
+      <button class="speed-pill" onclick="setSpeed(1.5)">1.5×</button>
+      <button class="speed-pill" onclick="setSpeed(2.0)">2×</button>
+    </div>
+  </div>
+
+  <div class="ctrl-divider"></div>
+
+  <label class="loop-toggle" title="Loop animation">
+    <input type="checkbox" id="loop-toggle" checked />
+    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    Loop
+  </label>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const SIGNS = {
+  actions: [
+    { name: "Hello",         sub: "Greeting"        },
+    { name: "Push",          sub: "Daily action"  },
+    { name: "Pull",          sub: "Daily action"  },
+    { name: "Help", sub: "Emergency"     },
+    { name: "Thankyou", sub: "Greeting"   },
+    { name: "Yes",           sub: "Affirmation"      },
+    { name: "Tall",          sub: "Descriptor"       },
+    // { name: "Stop",          sub: "Command"          },
+    // { name: "Help",          sub: "Emergency"        },
+    // { name: "Thank",         sub: "Greeting"         },
+  ],
+};
+
+// ── Scene setup ──────────────────────────────────────────────
+const canvasWrap = document.getElementById("canvas-wrap");
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xEFF4F7);
+scene.fog = new THREE.FogExp2(0xEFF4F7, 0.025);
+
+const camera = new THREE.PerspectiveCamera(
+  45, canvasWrap.clientWidth / canvasWrap.clientHeight, 0.1, 1000
+);
+camera.position.set(0, 1.4, 3.2);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.createElement("canvas") });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(canvasWrap.clientWidth, canvasWrap.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.domElement.id = "three-canvas";
+canvasWrap.appendChild(renderer.domElement);
+
+// Lighting
+const keyLight = new THREE.DirectionalLight(0xD6EEFF, 2.0);
+keyLight.position.set(-2, 4, 3);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xC8F0E8, 0.9);
+fillLight.position.set(3, 1, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xFFFFFF, 0.4);
+rimLight.position.set(0, 3, -4);
+scene.add(rimLight);
+
+const ambient = new THREE.HemisphereLight(0xE8F4FF, 0xD0EBE4, 0.8);
+scene.add(ambient);
+
+// Ground
+const groundGeo = new THREE.PlaneGeometry(12, 12);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0xDDE8EE, roughness: 0.9, metalness: 0.0 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grid
+const grid = new THREE.GridHelper(10, 20, 0x1A6B8A, 0x1A6B8A);
+grid.material.opacity = 0.06;
+grid.material.transparent = true;
+scene.add(grid);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 1.0, 0);
+controls.minDistance = 1.5;
+controls.maxDistance = 7;
+controls.maxPolarAngle = Math.PI / 1.9;
+controls.enablePan = false;
+controls.update();
+
+// State
+const loader = new GLTFLoader();
+let mixer = null, currentAction = null, currentSpeed = 1.0, loopEnabled = true, currentSignName = null;
+const clock = new THREE.Clock();
+
+// ── Play animation ────────────────────────────────────────────
+function playAnim(signName) {
+  if (currentSignName === signName) return;
+  currentSignName = signName;
+  updateSignLabel(signName);
+  highlightButton(signName);
+  showLoading(true);
+
+  loader.load(
+    signName + ".glb",
+    (gltf) => {
+      clearAvatars();
+      if (mixer) { mixer.stopAllAction(); mixer = null; }
+
+      const model = gltf.scene;
+      model.userData.isAvatar = true;
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      model.position.y = 0;
+      model.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
+      scene.add(model);
+
+      if (gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        const action = mixer.clipAction(gltf.animations[0]);
+        action.timeScale = currentSpeed;
+        action.setLoop(loopEnabled ? THREE.LoopRepeat : THREE.LoopOnce, loopEnabled ? Infinity : 1);
+        action.clampWhenFinished = !loopEnabled;
+        action.play();
+        currentAction = action;
+      }
+
+      showLoading(false);
+      showToast("Now playing: " + signName);
+    },
+    undefined,
+    (err) => {
+      console.warn("GLB load failed:", err);
+      showLoading(false);
+      showDemoAvatar(signName);
+    }
+  );
+}
+
+function clearAvatars() {
+  const rem = [];
+  scene.traverse(o => { if (o.userData.isAvatar) rem.push(o); });
+  rem.forEach(o => scene.remove(o));
+}
+
+function showDemoAvatar(signName) {
+  clearAvatars();
+  const group = new THREE.Group();
+  group.userData.isAvatar = true;
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1A6B8A, roughness: 0.5, metalness: 0.1 });
+  const headMat = new THREE.MeshStandardMaterial({ color: 0x2A8FAF, roughness: 0.4, metalness: 0.05 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: 0x1B9E7A, roughness: 0.3, metalness: 0.2, emissive: 0x1B9E7A, emissiveIntensity: 0.15 });
+
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.7, 20),
+    bodyMat
+  );
+  body.position.y = 0.9;
+  body.castShadow = true;
+  group.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), headMat);
+  head.position.y = 1.55;
+  head.castShadow = true;
+  group.add(head);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.018, 8, 32), accentMat);
+  ring.position.y = 1.55;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  [-0.38, 0.38].forEach((x, i) => {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.52, 12), bodyMat.clone());
+    arm.position.set(x * 1.55, 0.88, 0);
+    arm.rotation.z = i === 0 ? 0.45 : -0.45;
+    arm.castShadow = true;
+    arm.userData.baseRotZ = arm.rotation.z;
+    arm.userData.phase = i * Math.PI;
+    group.add(arm);
+  });
+
+  scene.add(group);
+
+  let t = 0;
+  const tick = () => {
+    if (!group.parent) return;
+    t += 0.022 * currentSpeed;
+    group.children.forEach(c => {
+      if (c.userData.baseRotZ !== undefined) {
+        c.rotation.z = c.userData.baseRotZ + Math.sin(t + c.userData.phase) * 0.22;
+      }
+    });
+    requestAnimationFrame(tick);
+  };
+  tick();
+
+  showToast("Demo mode: " + signName + " (connect .glb to activate)");
+}
+
+// ── Controls ──────────────────────────────────────────────────
+window.setSpeed = (s) => {
+  currentSpeed = s;
+  if (currentAction) currentAction.timeScale = s;
+  document.querySelectorAll(".speed-pill").forEach(el => {
+    el.classList.toggle("active", parseFloat(el.textContent) === s);
+  });
+};
+
+window.resetCamera = () => {
+  camera.position.set(0, 1.4, 3.2);
+  controls.target.set(0, 1.0, 0);
+  controls.update();
+};
+
+window.zoomCamera = (delta) => {
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  camera.position.addScaledVector(dir, -delta);
+};
+
+window.setCategory = (cat) => {
+  document.querySelectorAll(".cat-tab").forEach(el => {
+    el.classList.toggle("active", el.getAttribute("onclick").includes(cat));
+  });
+  buildSignList(cat);
+};
+
+document.getElementById("loop-toggle").addEventListener("change", e => {
+  loopEnabled = e.target.checked;
+  if (currentAction) {
+    currentAction.setLoop(loopEnabled ? THREE.LoopRepeat : THREE.LoopOnce, loopEnabled ? Infinity : 1);
+  }
+});
+
+// ── UI helpers ────────────────────────────────────────────────
+function updateSignLabel(name) {
+  document.getElementById("sign-name-text").textContent = name.toUpperCase();
+  document.getElementById("sign-label").classList.add("visible");
+}
+
+function highlightButton(name) {
+  document.querySelectorAll(".sign-btn").forEach(btn => {
+    const active = btn.dataset.name === name;
+    btn.classList.toggle("playing", active);
+    const statusEl = btn.querySelector(".sign-btn-status");
+    if (!statusEl) return;
+    if (active) {
+      statusEl.innerHTML = `<div class="play-bars"><div class="play-bar"></div><div class="play-bar"></div><div class="play-bar"></div></div>`;
+    } else {
+      statusEl.innerHTML = `<div class="play-icon"><svg viewBox="0 0 24 24" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg></div>`;
+    }
+  });
+}
+
+function showLoading(show) {
+  document.getElementById("loading-overlay").classList.toggle("hidden", !show);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+// ── Hand icon SVG ─────────────────────────────────────────────
+function handIconSVG() {
+  return `<img src="logo.png" alt="sign icon" style="width:18px; height:18px; object-fit:contain;" />`;
+}
+
+function buildSignList(category) {
+  const list = document.getElementById("sign-list");
+  list.innerHTML = "";
+  (SIGNS[category] || []).forEach(sign => {
+    const btn = document.createElement("button");
+    btn.className = "sign-btn" + (sign.name === currentSignName ? " playing" : "");
+    btn.dataset.name = sign.name;
+    const isActive = sign.name === currentSignName;
+    btn.innerHTML = `
+      <div class="sign-btn-icon-wrap">${handIconSVG()}</div>
+      <div class="sign-btn-text">
+        <span class="sign-btn-name">${sign.name}</span>
+        <span class="sign-btn-sub">${sign.sub}</span>
+      </div>
+      <div class="sign-btn-status">
+        ${isActive
+          ? `<div class="play-bars"><div class="play-bar"></div><div class="play-bar"></div><div class="play-bar"></div></div>`
+          : `<div class="play-icon"><svg viewBox="0 0 24 24" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg></div>`
+        }
+      </div>`;
+    btn.addEventListener("click", () => playAnim(sign.name));
+    list.appendChild(btn);
+  });
+}
+
+// Resize
+window.addEventListener("resize", () => {
+  const w = canvasWrap.clientWidth, h = canvasWrap.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+// Render loop
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  if (mixer) mixer.update(delta * currentSpeed);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Init
+showLoading(false);
+buildSignList("actions");
+setTimeout(() => playAnim("Hello"), 400);
+window.playAnim = playAnim;
+animate();
+</script>
+</body>
+</html>
+
+
+<!-- ================= DARK THEME FINAL CODE =============== -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISL Connect — 3D Avatar</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
     :root {
       --primary:        #6C3FF6;
       --primary-dark:   #4A1ED4;
@@ -28,7 +1085,7 @@
       --accent:         #00C9B1;
       --accent-light:   #4DDDC9;
       --warm:           #FF6B6B;
-      --bg:             #0D0820;      /* deep space — dark mode for 3D */
+      --bg:             #0D0820;      
       --bg-card:        #160D2E;
       --bg-surface:     #1E1040;
       --border:         rgba(108,63,246,0.22);
@@ -52,9 +1109,7 @@
       flex-direction: column;
     }
 
-    /* ════════════════════════════════════
-       TOP HEADER BAR
-    ════════════════════════════════════ */
+
     .header {
       position: relative;
       z-index: 20;
@@ -110,7 +1165,6 @@
       letter-spacing: -0.3px;
     }
 
-    /* Avatar status pill */
     .status-pill {
       display: flex;
       align-items: center;
@@ -134,18 +1188,13 @@
       50%       { opacity: 0.4; transform: scale(0.75); }
     }
 
-    /* ════════════════════════════════════
-       MAIN LAYOUT: canvas + right panel
-    ════════════════════════════════════ */
+
     .main-layout {
       display: flex;
       flex: 1;
       overflow: hidden;
     }
 
-    /* ════════════════════════════════════
-       3D CANVAS AREA
-    ════════════════════════════════════ */
     .canvas-wrap {
       flex: 1;
       position: relative;
@@ -158,7 +1207,6 @@
       height: 100% !important;
     }
 
-    /* Gradient vignette over canvas bottom */
     .canvas-wrap::after {
       content: '';
       position: absolute;
@@ -171,7 +1219,6 @@
       pointer-events: none;
     }
 
-    /* ── Grid lines background (subtle) ── */
     .canvas-wrap::before {
       content: '';
       position: absolute;
@@ -184,7 +1231,6 @@
       z-index: 0;
     }
 
-    /* ── Loading overlay ── */
     .loading-overlay {
       position: absolute;
       inset: 0;
@@ -238,7 +1284,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* ── Active sign label overlay ── */
     .sign-label-overlay {
       position: absolute;
       bottom: 24px;
@@ -276,10 +1321,6 @@
       letter-spacing: 1px;
       backdrop-filter: blur(8px);
     }
-
-    /* ════════════════════════════════════
-       RIGHT PANEL — SIGN BUTTONS
-    ════════════════════════════════════ */
     .side-panel {
       width: 220px;
       background: var(--bg-card);
@@ -308,7 +1349,6 @@
       color: var(--text);
     }
 
-    /* Category tabs */
     .category-tabs {
       display: flex;
       padding: 10px 12px 0;
@@ -341,7 +1381,6 @@
       color: var(--text);
     }
 
-    /* Scrollable sign list */
     .sign-list {
       flex: 1;
       overflow-y: auto;
@@ -357,7 +1396,6 @@
       border-radius: 2px;
     }
 
-    /* Individual sign button */
     .sign-btn {
       width: 100%;
       background: var(--bg-surface);
@@ -427,7 +1465,6 @@
     .sign-btn.playing .sign-btn-play { opacity: 1; }
     .sign-btn-play svg { width: 16px; height: 16px; }
 
-    /* Playing indicator bars */
     .play-bars {
       display: flex;
       align-items: flex-end;
@@ -446,10 +1483,6 @@
       0%, 100% { height: 4px; }
       50%       { height: 14px; }
     }
-
-    /* ════════════════════════════════════
-       BOTTOM CONTROLS BAR
-    ════════════════════════════════════ */
     .bottom-bar {
       position: relative;
       z-index: 20;
@@ -464,7 +1497,6 @@
       gap: 12px;
     }
 
-    /* Camera controls */
     .camera-controls {
       display: flex;
       gap: 8px;
@@ -486,7 +1518,6 @@
     }
     .ctrl-btn svg { width: 18px; height: 18px; }
 
-    /* Speed selector */
     .speed-group {
       display: flex;
       align-items: center;
@@ -523,7 +1554,6 @@
       color: var(--text);
     }
 
-    /* Loop toggle */
     .loop-toggle {
       display: flex;
       align-items: center;
@@ -560,9 +1590,6 @@
       background: var(--accent);
     }
 
-    /* ════════════════════════════════════
-       TOAST NOTIFICATION
-    ════════════════════════════════════ */
     .toast {
       position: fixed;
       top: 80px;
@@ -587,9 +1614,6 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ════════════════════════════════════
-       RESPONSIVE — small screens
-    ════════════════════════════════════ */
     @media (max-width: 600px) {
       .side-panel { width: 170px; }
       .header-title { font-size: 14px; }
@@ -601,7 +1625,6 @@
 
 <body>
 
-<!-- ── Top Header ── -->
 <header class="header">
   <div class="header-left">
     <a class="back-btn" onclick="history.back()" title="Back to Hub">
@@ -621,13 +1644,10 @@
   </div>
 </header>
 
-<!-- ── Main: Canvas + Side Panel ── -->
 <div class="main-layout">
 
-  <!-- 3D Canvas -->
   <div class="canvas-wrap" id="canvas-wrap">
 
-    <!-- Loading overlay -->
     <div class="loading-overlay" id="loading-overlay">
       <div class="loader-ring">
         <div class="loader-icon">🤟</div>
@@ -635,49 +1655,38 @@
       <div class="loader-text">Loading Avatar…</div>
     </div>
 
-    <!-- Active sign label -->
     <div class="sign-label-overlay" id="sign-label">
       <div class="sign-name-chip" id="sign-name-text">HELLO</div>
       <div class="sign-sub-chip">ISL · 3D DEMONSTRATION</div>
     </div>
 
-    <!-- Three.js canvas injected here -->
   </div>
 
-  <!-- Side Panel -->
   <aside class="side-panel">
     <div class="panel-header">
       <div class="panel-header-label">Select a Sign</div>
       <div class="panel-header-title">ISL Signs</div>
     </div>
 
-    <!-- Category tabs -->
     <div class="category-tabs">
       <button class="cat-tab active" onclick="setCategory('actions')">Acts</button>
-      <!-- <button class="cat-tab" onclick="setCategory('alpha')">A–Z</button>
-      <button class="cat-tab" onclick="setCategory('nums')">0–9</button> -->
     </div>
 
-    <!-- Sign buttons list -->
+
     <div class="sign-list" id="sign-list">
-      <!-- Populated by JS -->
     </div>
   </aside>
 </div>
 
-<!-- ── Bottom Controls Bar ── -->
 <div class="bottom-bar">
 
-  <!-- Camera controls -->
   <div class="camera-controls">
-    <!-- Reset camera -->
     <button class="ctrl-btn" onclick="resetCamera()" title="Reset camera">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
         <path d="M3 3v5h5"/>
       </svg>
     </button>
-    <!-- Zoom in -->
     <button class="ctrl-btn" onclick="zoomCamera(-0.4)" title="Zoom in">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="11" cy="11" r="8"/>
@@ -686,7 +1695,6 @@
         <line x1="8" y1="11" x2="14" y2="11"/>
       </svg>
     </button>
-    <!-- Zoom out -->
     <button class="ctrl-btn" onclick="zoomCamera(0.4)" title="Zoom out">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="11" cy="11" r="8"/>
@@ -696,7 +1704,6 @@
     </button>
   </div>
 
-  <!-- Playback speed -->
   <div class="speed-group">
     <span class="speed-label">Speed</span>
     <div class="speed-pills">
@@ -707,7 +1714,6 @@
     </div>
   </div>
 
-  <!-- Loop toggle -->
   <label class="loop-toggle" title="Loop animation">
     <input type="checkbox" id="loop-toggle" checked />
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
@@ -715,7 +1721,6 @@
   </label>
 </div>
 
-<!-- Toast notification -->
 <div class="toast" id="toast"></div>
 
 
@@ -724,59 +1729,27 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-// ─────────────────────────────────────────────────────────────
-// SIGN DATA — grouped by category
-// Add more sign names to expand; each name maps to `name.glb`
-// ─────────────────────────────────────────────────────────────
 const SIGNS = {
   actions: [
     { name: "Hello",  emoji: "👋", sub: "Greeting"      },
     { name: "Push",   emoji: "🤜", sub: "Physical action" },
     { name: "Pull",   emoji: "🤛", sub: "Physical action" },
-    { name: "Eat",    emoji: "🍽️", sub: "Daily action"   },
-    { name: "Drink",  emoji: "🥤", sub: "Daily action"   },
-    { name: "Sleep",  emoji: "😴", sub: "Daily action"   },
-    { name: "Walk",   emoji: "🚶", sub: "Movement"       },
+        { name: "Mixamo_hello",   emoji: "🤛", sub: "Physical action" },
+    { name: "mixamo_help_2",    emoji: "🍽️", sub: "Daily action"   },
+    { name: "mixamo_thankyou",  emoji: "🥤", sub: "Daily action"   },
+    { name: "yes",  emoji: "😴", sub: "Daily action"   },
+    { name: "tall",   emoji: "🚶", sub: "Movement"       },
     { name: "Stop",   emoji: "✋", sub: "Command"        },
     { name: "Help",   emoji: "🆘", sub: "Emergency"      },
     { name: "Thank",  emoji: "🙏", sub: "Greeting"       },
   ],
-  // alpha: [
-  //   { name: "A", emoji: "🅰️", sub: "Alphabet" },
-  //   { name: "B", emoji: "🅱️", sub: "Alphabet" },
-  //   { name: "C", emoji: "©️",  sub: "Alphabet" },
-  //   { name: "D", emoji: "D",  sub: "Alphabet" },
-  //   { name: "E", emoji: "E",  sub: "Alphabet" },
-  //   { name: "F", emoji: "F",  sub: "Alphabet" },
-  //   { name: "G", emoji: "G",  sub: "Alphabet" },
-  //   { name: "H", emoji: "H",  sub: "Alphabet" },
-  //   { name: "I", emoji: "ℹ️", sub: "Alphabet" },
-  //   { name: "J", emoji: "J",  sub: "Alphabet" },
-  // ],
-  // nums: [
-  //   { name: "One",   emoji: "1️⃣", sub: "Number" },
-  //   { name: "Two",   emoji: "2️⃣", sub: "Number" },
-  //   { name: "Three", emoji: "3️⃣", sub: "Number" },
-  //   { name: "Four",  emoji: "4️⃣", sub: "Number" },
-  //   { name: "Five",  emoji: "5️⃣", sub: "Number" },
-  //   { name: "Six",   emoji: "6️⃣", sub: "Number" },
-  //   { name: "Seven", emoji: "7️⃣", sub: "Number" },
-  //   { name: "Eight", emoji: "8️⃣", sub: "Number" },
-  //   { name: "Nine",  emoji: "9️⃣", sub: "Number" },
-  //   { name: "Ten",   emoji: "🔟", sub: "Number" },
-  // ],
 };
 
-// ─────────────────────────────────────────────────────────────
-// THREE.JS SETUP
-// ─────────────────────────────────────────────────────────────
 const canvasWrap = document.getElementById("canvas-wrap");
 
 const scene = new THREE.Scene();
-// scene.background = new THREE.Color(0x0D0820);
 scene.background = new THREE.Color(0xF5F6FA);
-// Subtle fog for depth
-// scene.fog = new THREE.FogExp2(0x0D0820, 0.045);
+
 scene.fog = new THREE.FogExp2(0xF5F6FA, 0.03);
 const camera = new THREE.PerspectiveCamera(
   45, canvasWrap.clientWidth / canvasWrap.clientHeight, 0.1, 1000
@@ -796,28 +1769,23 @@ renderer.toneMappingExposure = 1.2;
 renderer.domElement.id = "three-canvas";
 canvasWrap.appendChild(renderer.domElement);
 
-// ── Lighting ──────────────────────────────────────────────────
-// Key light: warm violet tint from above-left
+
 const keyLight = new THREE.DirectionalLight(0xC8ADFF, 2.2);
 keyLight.position.set(-2, 4, 3);
 keyLight.castShadow = true;
 scene.add(keyLight);
 
-// Fill light: teal accent from right
 const fillLight = new THREE.DirectionalLight(0x4DDDC9, 0.8);
 fillLight.position.set(3, 1, -2);
 scene.add(fillLight);
 
-// Rim light: cool blue from behind
 const rimLight = new THREE.DirectionalLight(0x8080FF, 0.5);
 rimLight.position.set(0, 2, -4);
 scene.add(rimLight);
 
-// Ambient
 const ambient = new THREE.HemisphereLight(0x9B72F5, 0x160D2E, 0.7);
 scene.add(ambient);
 
-// ── Ground plane (reflective) ──────────────────────────────────
 const groundGeo = new THREE.PlaneGeometry(12, 12);
 const groundMat = new THREE.MeshStandardMaterial({
   color: 0x160D2E,
@@ -829,13 +1797,11 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ── Grid helper overlay ────────────────────────────────────────
 const grid = new THREE.GridHelper(10, 20, 0x6C3FF6, 0x6C3FF6);
 grid.material.opacity = 0.08;
 grid.material.transparent = true;
 scene.add(grid);
 
-// ── Orbit controls ─────────────────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -846,9 +1812,6 @@ controls.maxPolarAngle = Math.PI / 1.9;
 controls.enablePan = false;
 controls.update();
 
-// ─────────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────────
 const loader = new GLTFLoader();
 let mixer = null;
 let currentAction = null;
@@ -857,14 +1820,10 @@ let loopEnabled = true;
 let currentSignName = null;
 const clock = new THREE.Clock();
 
-// ─────────────────────────────────────────────────────────────
-// PLAY ANIMATION
-// ─────────────────────────────────────────────────────────────
 function playAnim(signName) {
-  if (currentSignName === signName) return; // already playing
+  if (currentSignName === signName) return; 
   currentSignName = signName;
 
-  // Update UI immediately
   updateSignLabel(signName);
   highlightButton(signName);
   showLoading(true);
@@ -872,7 +1831,6 @@ function playAnim(signName) {
   loader.load(
     signName + ".glb",
     (gltf) => {
-      // Clear old scene objects except lights & ground
       const toRemove = [];
       scene.traverse((obj) => {
         if (obj.userData.isAvatar) toRemove.push(obj);
@@ -884,11 +1842,10 @@ function playAnim(signName) {
       const model = gltf.scene;
       model.userData.isAvatar = true;
 
-      // Auto-center model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center);
-      model.position.y = 0; // sit on ground
+      model.position.y = 0; 
 
       model.traverse((node) => {
         if (node.isMesh) {
@@ -920,13 +1877,11 @@ function playAnim(signName) {
     (err) => {
       console.warn("GLB load failed:", err);
       showLoading(false);
-      // Demo mode: show placeholder avatar shape if .glb not found
       showDemoAvatar(signName);
     }
   );
 }
 
-// Demo placeholder when .glb not available yet
 function showDemoAvatar(signName) {
   const toRemove = [];
   scene.traverse((obj) => { if (obj.userData.isAvatar) toRemove.push(obj); });
@@ -935,7 +1890,6 @@ function showDemoAvatar(signName) {
   const group = new THREE.Group();
   group.userData.isAvatar = true;
 
-  // Body
   const bodyGeo = new THREE.CapsuleGeometry ? 
     new THREE.CapsuleGeometry(0.22, 0.7, 8, 16) :
     new THREE.CylinderGeometry(0.22, 0.22, 0.7, 16);
@@ -947,7 +1901,6 @@ function showDemoAvatar(signName) {
   body.castShadow = true;
   group.add(body);
 
-  // Head
   const headGeo = new THREE.SphereGeometry(0.22, 24, 24);
   const headMat = new THREE.MeshStandardMaterial({
     color: 0x9B72F5, roughness: 0.3, metalness: 0.05,
@@ -957,7 +1910,6 @@ function showDemoAvatar(signName) {
   head.castShadow = true;
   group.add(head);
 
-  // Accent ring around head
   const ringGeo = new THREE.TorusGeometry(0.26, 0.02, 8, 32);
   const ringMat = new THREE.MeshStandardMaterial({
     color: 0x00C9B1, roughness: 0.2, metalness: 0.5, emissive: 0x00C9B1, emissiveIntensity: 0.3,
@@ -967,7 +1919,6 @@ function showDemoAvatar(signName) {
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
 
-  // Arms
   [-0.35, 0.35].forEach((x, i) => {
     const armGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.55, 10);
     const armMat = new THREE.MeshStandardMaterial({
@@ -978,7 +1929,6 @@ function showDemoAvatar(signName) {
     arm.rotation.z = i === 0 ? 0.5 : -0.5;
     arm.castShadow = true;
 
-    // Animate arm for the demo
     arm.userData.baseRotZ = arm.rotation.z;
     arm.userData.phase = i * Math.PI;
     group.add(arm);
@@ -986,7 +1936,6 @@ function showDemoAvatar(signName) {
 
   scene.add(group);
 
-  // Simple oscillate animation
   let t = 0;
   const demoAnimate = () => {
     if (!group.parent) return;
@@ -1004,9 +1953,6 @@ function showDemoAvatar(signName) {
   showToast(`Demo: ${signName} (connect .glb to activate)`);
 }
 
-// ─────────────────────────────────────────────────────────────
-// CONTROLS
-// ─────────────────────────────────────────────────────────────
 window.setSpeed = (s) => {
   currentSpeed = s;
   if (currentAction) currentAction.timeScale = s;
@@ -1044,9 +1990,6 @@ document.getElementById("loop-toggle").addEventListener("change", (e) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────
-// UI HELPERS
-// ─────────────────────────────────────────────────────────────
 function updateSignLabel(name) {
   const overlay = document.getElementById("sign-label");
   const nameEl  = document.getElementById("sign-name-text");
@@ -1122,9 +2065,6 @@ function buildSignList(category) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────
-// RESIZE HANDLER
-// ─────────────────────────────────────────────────────────────
 window.addEventListener("resize", () => {
   const w = canvasWrap.clientWidth;
   const h = canvasWrap.clientHeight;
@@ -1133,9 +2073,6 @@ window.addEventListener("resize", () => {
   renderer.setSize(w, h);
 });
 
-// ─────────────────────────────────────────────────────────────
-// RENDER LOOP
-// ─────────────────────────────────────────────────────────────
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
@@ -1144,28 +2081,26 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// ─────────────────────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────────────────────
 
-// Hide loading — initial state (no GLB loaded yet)
+
 showLoading(false);
 
-// Build initial sign list
 buildSignList("actions");
 
-// Auto-play first sign (Hello) in demo mode
 setTimeout(() => playAnim("Hello"), 400);
 
-// Expose for HTML buttons (backward compat)
 window.playAnim = playAnim;
 
-// Start render loop
 animate();
 
 </script>
 </body>
-</html>
+</html> -->
+
+
+
+<!-- =========================OLD CODE =============================== -->
+
 
 <!-- <!DOCTYPE html>
 <html>
